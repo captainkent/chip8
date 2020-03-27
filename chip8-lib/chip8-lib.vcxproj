@@ -19,14 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\CChipEight.h" />
     <ClInclude Include="src\CMemory.h" />
     <ClInclude Include="src\CPU.h" />
     <ClInclude Include="src\CRegisters.h" />
     <ClInclude Include="src\stuff.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\CChipEight.cpp" />
     <ClCompile Include="src\CMemory.cpp" />
     <ClCompile Include="src\CPU.cpp" />
     <ClCompile Include="src\CRegisters.cpp" />

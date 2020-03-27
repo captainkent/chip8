@@ -5,12 +5,14 @@
 
 class opcode_parser : public testing::Test {
 public:
-	CMemory		the_memory;
+	CMemory*		the_memory;
 	CRegisters*	the_registers;
 	CCPU* the_cpu;
 
 	void SetUp() {
+		the_memory = new CMemory;
 		the_registers = new CRegisters;
+		
 		the_cpu = new CCPU(the_memory, the_registers);
 	}
 
