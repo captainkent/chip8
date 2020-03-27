@@ -252,7 +252,6 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 		case 0x6000:
 		{
 			uint8_t reg = code[0] & 0x0f;
-			//the_V_reg[reg] = code[1];
 			the_V_registers->set_register_value(reg, code[1]);
 
 			the_pc += 2;
