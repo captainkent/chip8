@@ -9,12 +9,12 @@
 #include <atomic>
 #include "CMemory.h"
 #include "CRegisters.h"
-
+#include "CGraphics.h"
 
 class CCPU
 {
 public:
-	CCPU(CMemory* a_memory, CRegisters* a_register/*, CGraphics a_graphics, CKeyboard a_keyboard*/);
+	CCPU(CMemory* a_memory, CRegisters* a_register, CGraphics* a_graphics/*, CKeyboard a_keyboard*/);
 	~CCPU();
 
 	void		initialize();
@@ -27,7 +27,7 @@ public:
 private:
 	CMemory*					the_memory;
 	CRegisters*					the_V_registers;
-
+	CGraphics*					the_graphics;
 	
 	uint16_t					the_opcode;
 	uint16_t					the_pc;
@@ -37,7 +37,6 @@ private:
 	uint8_t						the_delay_timer;
 	bool						the_drawflag;
 	
-	std::array<uint8_t, 2048>	the_gfx;
 	std::array<uint16_t, 16>	the_stack;
 	std::array<uint8_t, 16>		the_key;
 	

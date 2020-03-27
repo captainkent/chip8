@@ -2,23 +2,27 @@
 #include "../chip8-lib/src/CPU.h"
 #include "../chip8-lib/src/CMemory.h"
 #include "../chip8-lib/src/CRegisters.h"
+#include "../chip8-lib/src/CGraphics.h"
 
 class opcode_parser : public testing::Test {
 public:
 	CMemory*		the_memory;
-	CRegisters*	the_registers;
-	CCPU* the_cpu;
+	CRegisters*		the_registers;
+	CGraphics*		the_graphics;
+	CCPU*			the_cpu;
 
 	void SetUp() {
-		the_memory = new CMemory;
-		the_registers = new CRegisters;
+		the_memory		= new CMemory;
+		the_registers	= new CRegisters;
+		the_graphics	= new CGraphics;
 		
-		the_cpu = new CCPU(the_memory, the_registers);
+		the_cpu = new CCPU(the_memory, the_registers, the_graphics);
 	}
 
 	void TearDown() {
 		delete the_cpu;
 		delete the_registers;
+		delete the_graphics;
 	}
 };
 
@@ -30,7 +34,23 @@ public:
 */
 TEST_F(opcode_parser, test_CLS)
 {
+	// Manually set some pixels.
+	for (int i = 0; i < 5; i++)
+	{
+		the_graphics->flip_pixel(i);
+		EXPECT_EQ(the_graphics->get_pixel_state(i), 1);
+	}
+	
+	// Set and parse the opcode.
+	uint16_t my_opcode = 0x00e0;
 
+	the_cpu->parse_opcode(my_opcode);
+
+	// Verify the graphics are cleared.
+	for (int i = 0; i < the_graphics->size(); i++)
+	{
+		EXPECT_EQ(the_graphics->get_pixel_state(i), 0);
+	}
 }
 
 /**

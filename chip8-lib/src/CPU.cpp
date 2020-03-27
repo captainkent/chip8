@@ -10,13 +10,13 @@
 #include <boost/chrono.hpp>
 #include <boost/bind.hpp>
 
-CCPU::CCPU(CMemory* a_memory, CRegisters* a_register) : 
+CCPU::CCPU(CMemory* a_memory, CRegisters* a_register, CGraphics* a_graphics) : 
 	the_memory(a_memory),
 	the_V_registers(a_register),
+	the_graphics(a_graphics),
 	the_I_register(0x0),
 	the_opcode(0x0),
 	the_pc(0x0),
-	the_gfx({}),
 	the_delay_timer(0x0),
 	the_sound_timer(0x0),
 	the_stack({}),
@@ -44,7 +44,6 @@ CCPU::initialize()
 	the_sp			= 0x0;
 	
 	// Clear registers.
-	the_gfx			= {};
 	the_stack		= {};
 	//the_V_reg		= {};
 	//the_memory		= {};
@@ -164,7 +163,7 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 			{
 			case 0xe0:
 				{
-					the_gfx = {};
+					the_graphics->clear();
 					the_drawflag = true;
 					the_pc += 2;
 
@@ -523,11 +522,11 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 
 						the_pixels.push_back(my_pixel);
 
-						if (the_gfx[(x + row + ((y + col) * 64))] == 1)
+						if (the_graphics->get_pixel_state((x + row + ((y + col) * 64))) == 1)
 						{
 							the_V_registers->set_register_value(0xf, 1);
 						}
-						the_gfx[(x + row + ((y + col) * 64))] ^= 1;
+						the_graphics->flip_pixel((x + row + ((y + col) * 64)));
 					}
 				}
 			}
