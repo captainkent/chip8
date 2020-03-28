@@ -11,7 +11,7 @@ class CGraphics
 		int		get_pixel_state(int a_pixel);
 		void	flip_pixel(int a_pixel);
 		void	clear();
-		size_t	size();
+		size_t	get_size();
 
 	private:
 		std::array<uint8_t, 2048>	the_graphics;

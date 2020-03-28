@@ -36,6 +36,9 @@
     <ClInclude Include="src\CGraphics.h">
       <Filter>Header Files\src</Filter>
     </ClInclude>
+    <ClInclude Include="src\CKeyboard.h">
+      <Filter>Header Files\src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CMemory.cpp">
@@ -51,6 +54,9 @@
       <Filter>Source Files\src</Filter>
     </ClCompile>
     <ClCompile Include="src\CGraphics.cpp">
+      <Filter>Source Files\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CKeyboard.cpp">
       <Filter>Source Files\src</Filter>
     </ClCompile>
   </ItemGroup>

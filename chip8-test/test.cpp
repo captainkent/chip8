@@ -3,29 +3,95 @@
 #include "../chip8-lib/src/CMemory.h"
 #include "../chip8-lib/src/CRegisters.h"
 #include "../chip8-lib/src/CGraphics.h"
+#include "../chip8-lib/src/CKeyboard.h"
 
 class opcode_parser : public testing::Test {
 public:
 	CMemory*		the_memory;
 	CRegisters*		the_registers;
 	CGraphics*		the_graphics;
+	CKeyboard*		the_keyboard;
 	CCPU*			the_cpu;
 
 	void SetUp() {
 		the_memory		= new CMemory;
 		the_registers	= new CRegisters;
 		the_graphics	= new CGraphics;
-		
-		the_cpu = new CCPU(the_memory, the_registers, the_graphics);
+		the_keyboard	= new CKeyboard;
+
+		the_cpu = new CCPU(the_memory, the_registers, the_graphics, the_keyboard);
 	}
 
 	void TearDown() {
-		delete the_cpu;
+		delete the_memory;
 		delete the_registers;
 		delete the_graphics;
+		delete the_keyboard;
+		delete the_cpu;
 	}
 };
 
+/**
+	Test to see if the memory is filled as intended.
+*/
+TEST_F(opcode_parser, test_memory)
+{
+	// Check if memory is empty.
+	for (int i = 0; i < the_memory->get_size(); i++)
+		EXPECT_EQ(the_memory->get_byte(i), 0);
+	
+	// Store some data in the memory.
+	std::vector<uint8_t> my_data_buffer;
+
+	for(int i = 0; i < 10; i++)
+		my_data_buffer.push_back(0x10 + i);
+
+	the_memory->load_data(my_data_buffer);
+
+	// Verify the content of the memory.
+	for (int i = 0; i < 10; i++)
+		EXPECT_EQ(the_memory->get_byte(i + 0x200), 0x10 + i);
+}
+
+
+/**
+	Test to see if the registers are filled as intended.
+*/
+TEST_F(opcode_parser, test_registers)
+{
+	// Set up a register.
+	the_registers->set_register_value(2, 0x20);
+
+	EXPECT_EQ(the_registers->get_register_value(2), 0x20);
+}
+
+/**
+	Test to see if the graphics register works as intended.
+*/
+TEST_F(opcode_parser, test_graphics)
+{
+	// Make sure it's empty.
+	EXPECT_EQ(the_graphics->get_pixel_state(6), 0);
+	
+	// Set up some stuff in the graphics register.
+	the_graphics->flip_pixel(6);
+
+	EXPECT_EQ(the_graphics->get_pixel_state(6), 1);
+
+	// Flip it again.
+	the_graphics->flip_pixel(6);
+
+	EXPECT_EQ(the_graphics->get_pixel_state(6), 0);
+
+}
+
+/**
+	Test to see if the keyboard register works as intended.
+*/
+TEST_F(opcode_parser, test_keyboard)
+{
+
+}
 
 /**
 	00E0 - CLS
@@ -47,7 +113,7 @@ TEST_F(opcode_parser, test_CLS)
 	the_cpu->parse_opcode(my_opcode);
 
 	// Verify the graphics are cleared.
-	for (int i = 0; i < the_graphics->size(); i++)
+	for (int i = 0; i < the_graphics->get_size(); i++)
 	{
 		EXPECT_EQ(the_graphics->get_pixel_state(i), 0);
 	}
@@ -62,7 +128,7 @@ TEST_F(opcode_parser, test_CLS)
 */
 TEST_F(opcode_parser, test_RET)
 {
-
+	EXPECT_EQ(0, 1);
 }
 
 /**
@@ -74,7 +140,13 @@ TEST_F(opcode_parser, test_RET)
 */
 TEST_F(opcode_parser, test_JP_addr)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0x1123;
 
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_pc(), 0x123);
 }
 
 /**
@@ -86,7 +158,7 @@ TEST_F(opcode_parser, test_JP_addr)
 */
 TEST_F(opcode_parser, test_CALL_addr)
 {
-
+	EXPECT_EQ(0, 1);
 }
 
 /**
@@ -98,7 +170,24 @@ TEST_F(opcode_parser, test_CALL_addr)
 */
 TEST_F(opcode_parser, test_SE_Vx_byte)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0x3466;
 
+	// Set up the registers.
+	the_registers->set_register_value(4, 0x66);
+
+	// Parse the opcode, this time it should skip, means program counter goes up by 4.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_pc(), 4);
+
+	// Now set the registers so it won't skip.
+	the_registers->set_register_value(4, 0x65);
+
+	// Parse the opcode, this time it shouldn't skip, means program counter goes up by 2.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_pc(), 6);
 }
 
 
@@ -111,7 +200,24 @@ TEST_F(opcode_parser, test_SE_Vx_byte)
 */
 TEST_F(opcode_parser, test_SNE_Vx_byte)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0x4466;
 
+	// Set up the registers.
+	the_registers->set_register_value(4, 0x66);
+
+	// Parse the opcode, this time it shouldn't skip, means program counter goes up by 2.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_pc(), 2);
+
+	// Now set the registers so it won't skip.
+	the_registers->set_register_value(4, 0x65);
+
+	// Parse the opcode, this time it shouldn skip, means program counter goes up by 4.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_pc(), 6);
 }
 
 /**
@@ -123,7 +229,25 @@ TEST_F(opcode_parser, test_SNE_Vx_byte)
 */
 TEST_F(opcode_parser, test_SE_Vx_Vy)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0x5450;
 
+	// Set up the registers.
+	the_registers->set_register_value(4, 0x66);
+	the_registers->set_register_value(5, 0x66);
+
+	// Parse the opcode, this time it should skip, means program counter goes up by 4.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_pc(), 4);
+
+	// Now set the registers so it won't skip.
+	the_registers->set_register_value(4, 0x65);
+
+	// Parse the opcode, this time it shouldn skip, means program counter goes up by 2.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_pc(), 6);
 }
 
 /**
@@ -152,7 +276,16 @@ TEST_F(opcode_parser, test_LD_Vx_byte)
 */
 TEST_F(opcode_parser, test_ADD_Vx_byte)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0x7244;
 
+	// Set up something in the register to add.
+	the_registers->set_register_value(2, 0x20);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_registers->get_register_value(2), 0x64);
 }
 
 /**
@@ -164,7 +297,17 @@ TEST_F(opcode_parser, test_ADD_Vx_byte)
 */
 TEST_F(opcode_parser, test_LD_Vx_Vy)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0x8340;
 
+	// Set up the registers.
+	the_registers->set_register_value(3, 0x20);
+	the_registers->set_register_value(4, 0x50);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_registers->get_register_value(3), 0x50);
 }
 
 /**
@@ -176,7 +319,20 @@ TEST_F(opcode_parser, test_LD_Vx_Vy)
 */
 TEST_F(opcode_parser, test_OR_Vx_Vy)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0x8631;
 
+	// Set up the registers.
+	the_registers->set_register_value(6, 0x20);
+	the_registers->set_register_value(3, 0x50);
+
+	// Comparison value.
+	uint8_t my_result = 0x20 | 0x50;
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_registers->get_register_value(6), my_result);
 }
 
 /**
@@ -188,7 +344,20 @@ TEST_F(opcode_parser, test_OR_Vx_Vy)
 */
 TEST_F(opcode_parser, test_AND_Vx_Vy)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0x8632;
 
+	// Set up the registers.
+	the_registers->set_register_value(6, 0x20);
+	the_registers->set_register_value(3, 0x50);
+
+	// Comparison value.
+	uint8_t my_result = 0x20 & 0x50;
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_registers->get_register_value(6), my_result);
 }
 
 /**
@@ -200,7 +369,20 @@ TEST_F(opcode_parser, test_AND_Vx_Vy)
 */
 TEST_F(opcode_parser, test_XOR_Vx_Vy)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0x8633;
 
+	// Set up the registers.
+	the_registers->set_register_value(6, 0x20);
+	the_registers->set_register_value(3, 0x50);
+
+	// Comparison value.
+	uint8_t my_result = 0x20 ^ 0x50;
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_registers->get_register_value(6), my_result);
 }
 
 /**
@@ -211,7 +393,34 @@ TEST_F(opcode_parser, test_XOR_Vx_Vy)
 */
 TEST_F(opcode_parser, test_ADD_Vx_Vy)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0x8634;
 
+	// Set up the registers, this ADD should have no carry bit set.
+	the_registers->set_register_value(6, 0x20);
+	the_registers->set_register_value(3, 0x50);
+
+	// Comparison value.
+	uint8_t my_result = 0x20 + 0x50;
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_registers->get_register_value(6), my_result);
+	EXPECT_EQ(the_registers->get_register_value(0xf), 0);
+	
+	// Now do some ADD where a carry bit will be set.
+	the_registers->set_register_value(6, 0xff);
+	the_registers->set_register_value(3, 0x20);
+
+	// Comparison value.
+	my_result = 0xff + 0x20;
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_registers->get_register_value(6), my_result);
+	EXPECT_EQ(the_registers->get_register_value(0xf), 1);
 }
 
 /**
@@ -222,38 +431,64 @@ TEST_F(opcode_parser, test_ADD_Vx_Vy)
 */
 TEST_F(opcode_parser, test_SUB_Vx_Vy)
 {
+	// Set up the opcode.
 	uint16_t my_opcode = 0x8695;
 
+	// Set up the registers, to cause a carry bit.
 	the_registers->set_register_value(6, 5);
 	the_registers->set_register_value(9, 2);
 
+	// Comparison value.
+	uint8_t my_result = 5 - 2;
+
+	// Parse the opcode.
 	the_cpu->parse_opcode(my_opcode);
 
-	EXPECT_EQ(the_registers->get_register_value(6), 3);
+	EXPECT_EQ(the_registers->get_register_value(6), my_result);
 	EXPECT_EQ(the_registers->get_register_value(0xf), 1);
 
 	//////////////////////////////////////////////////////
 
-	my_opcode = 0x8755;
+	// Comparison value.
+	my_result = 3 - 9;
 
-	the_registers->set_register_value(7, 3);
-	the_registers->set_register_value(5, 9);
+	// Set up the registers, to this case no carry bit.
+	the_registers->set_register_value(6, 3);
+	the_registers->set_register_value(9, 9);
 
 	the_cpu->parse_opcode(my_opcode);
 
-	EXPECT_EQ(the_registers->get_register_value(7), 250);
+	EXPECT_EQ(the_registers->get_register_value(6), my_result);
 	EXPECT_EQ(the_registers->get_register_value(0xf), 0);
 }
 
 /**
 	8xy6 - SHR Vx {, Vy}
-	Set Vx = Vx SHR 1.
+	Set Vx = Vy SHR 1.
 
-	If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0. Then Vx is divided by 2.
+	Store the value of register VY shifted right one bit in register VX. Set register VF to the least significant bit of VY prior to the shift. VY is unchanged.
 */
 TEST_F(opcode_parser, test_SHR_Vx_Vy)
 {
+	// Set up the opcode.
+	uint8_t my_opcode = 0x8436;
 
+	// Set up the registers.
+	the_registers->set_register_value(4, 0x10);
+	the_registers->set_register_value(3, 0x20);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// First check the LSB of Vy.
+	uint8_t my_lsb = 0x20 & 0b0001;
+
+	EXPECT_EQ(the_registers->get_register_value(0xf), my_lsb);
+
+	// Now check the shifted value.
+	uint8_t my_shifted_value = 0x20 >> 1;
+
+	EXPECT_EQ(the_registers->get_register_value(4), my_shifted_value);
 }
 
 /**
@@ -264,18 +499,63 @@ TEST_F(opcode_parser, test_SHR_Vx_Vy)
 */
 TEST_F(opcode_parser, test_SUBN_Vx_Vy)
 {
+	// Set up the opcode.
+	uint8_t my_opcode = 0x8437;
 
+	// Set up the registers, with carry bit.
+	the_registers->set_register_value(4, 0x10);
+	the_registers->set_register_value(3, 0x20);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// First check the value.
+	uint8_t my_value = 0x20 - 0x10;
+
+	EXPECT_EQ(the_registers->get_register_value(4), my_value);
+	EXPECT_EQ(the_registers->get_register_value(0xf), 1);
+
+	// Set up the registers, without carry bit.
+	the_registers->set_register_value(4, 0x20);
+	the_registers->set_register_value(3, 0x10);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// First check the value.
+	my_value = 0x10 - 0x20;
+
+	EXPECT_EQ(the_registers->get_register_value(4), my_value);
+	EXPECT_EQ(the_registers->get_register_value(0xf), 0);
 }
 
 /**
 	8xyE - SHL Vx {, Vy}
-	Set Vx = Vx SHL 1.
+	Set Vx = Vy SHL 1.
 
-	If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
+	Store the value of register VY shifted left one bit in register VX. Set register VF to the most significant bit of VY prior to the shift. VY is unchanged.
 */
 TEST_F(opcode_parser, test_SHL_Vx_Vy)
 {
+	// Set up the opcode.
+	uint8_t my_opcode = 0x843e;
 
+	// Set up the registers.
+	the_registers->set_register_value(4, 0x10);
+	the_registers->set_register_value(3, 0x20);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// First check the MSB of Vy.
+	uint8_t my_msb = 0x20 & 0b1000;
+
+	EXPECT_EQ(the_registers->get_register_value(0xf), my_msb);
+
+	// Now check the shifted value.
+	uint8_t my_shifted_value = 0x20 << 1;
+
+	EXPECT_EQ(the_registers->get_register_value(4), my_shifted_value);
 }
 
 /**
@@ -286,7 +566,28 @@ TEST_F(opcode_parser, test_SHL_Vx_Vy)
 */
 TEST_F(opcode_parser, test_SNE_Vx_Vy)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0x9470;
 
+	// Set up the registers to NOT skip.
+	the_registers->set_register_value(4, 0x10);
+	the_registers->set_register_value(7, 0x10);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// Program counter should be 2.
+	EXPECT_EQ(the_cpu->get_pc(), 2);
+
+	// Now we do want to skip.
+	the_registers->set_register_value(4, 0x10);
+	the_registers->set_register_value(7, 0x20);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// Program counter should be 6, the previous program counter was 2, and this time we skip.
+	EXPECT_EQ(the_cpu->get_pc(), 6);
 }
 
 /**
@@ -297,7 +598,13 @@ TEST_F(opcode_parser, test_SNE_Vx_Vy)
 */
 TEST_F(opcode_parser, test_LD_I_addr)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0xa123;
 
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_I_reg(), 0x123);
 }
 
 /**
@@ -308,7 +615,19 @@ TEST_F(opcode_parser, test_LD_I_addr)
 */
 TEST_F(opcode_parser, test_JP_V0_addr)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0xb123;
 
+	// Set up the registers.
+	the_registers->set_register_value(0, 0x5);
+
+	// The address value.
+	uint16_t my_value = 0x123 + 0x5;
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_pc(), my_value);
 }
 
 /**
@@ -319,7 +638,20 @@ TEST_F(opcode_parser, test_JP_V0_addr)
 */
 TEST_F(opcode_parser, test_RND_Vx_byte)
 {
+	// Per definition of rand(), if we don't pass a seed to it using srand() before calling rand(), it will behave as if srand(1) is called.
+	// Seeing as we only set the seed in initialize(), we can abuse this for testing! 
+	// Therefore our implementation of rand() % 255 will always return 41.
 
+	// Set up the opcode.
+	uint16_t my_opcode = 0xc521;
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// My value to check, 41 is what rand() % 255 returns.
+	uint8_t my_value = 0x21 & 41;
+
+	EXPECT_EQ(the_registers->get_register_value(5), my_value);
 }
 
 /**
@@ -333,7 +665,7 @@ TEST_F(opcode_parser, test_RND_Vx_byte)
 */
 TEST_F(opcode_parser, test_DRW_Vx_Vy_nibble)
 {
-
+	EXPECT_EQ(0, 1);
 }
 
 /**
@@ -344,6 +676,26 @@ TEST_F(opcode_parser, test_DRW_Vx_Vy_nibble)
 */
 TEST_F(opcode_parser, test_SKP_Vx)
 {
+	// Set up the opcode.
+	uint8_t my_opcode = 0xe59e;
+
+	// Set up something in the keystate to active.
+	the_keyboard->set_key_state(5, 1);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// Key state is active, so the program counter will be skipped (+4).
+	EXPECT_EQ(the_cpu->get_pc(), 4);
+
+	// Now set keystate to inactive.
+	the_keyboard->set_key_state(5, 0);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// Key state is active, so the program counter will not be skipped, just incremented.
+	EXPECT_EQ(the_cpu->get_pc(), 6);
 
 }
 
@@ -355,7 +707,26 @@ TEST_F(opcode_parser, test_SKP_Vx)
 */
 TEST_F(opcode_parser, test_SKNP_Vx)
 {
+	// Set up the opcode.
+	uint8_t my_opcode = 0xe5a1;
 
+	// Set up something in the keystate to active.
+	the_keyboard->set_key_state(5, 1);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// Key state is active, so the program counter will NOT be skipped.
+	EXPECT_EQ(the_cpu->get_pc(), 2);
+
+	// Now set keystate to active.
+	the_keyboard->set_key_state(5, 1);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// Key state is inactive, so the program counter will be skipped.
+	EXPECT_EQ(the_cpu->get_pc(), 6);
 }
 
 /**
@@ -366,7 +737,18 @@ TEST_F(opcode_parser, test_SKNP_Vx)
 */
 TEST_F(opcode_parser, test_LD_Vx_DT)
 {
+	// At startup, our delay timer is 0x0. Therefore, our register will be set to 0.
+	uint16_t my_opcode = 0xf507;
 
+	// To check this, load a value in it, determine that value.
+	the_registers->set_register_value(5, 20);
+
+	EXPECT_EQ(the_registers->get_register_value(5), 20);
+
+	// Now parse the opcode (which then resets it to 0).
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_registers->get_register_value(5), 0);
 }
 
 /**
@@ -377,7 +759,25 @@ TEST_F(opcode_parser, test_LD_Vx_DT)
 */
 TEST_F(opcode_parser, test_LD_Vx_K)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0xf50a;
 
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// Verify the program counter doesn't increase because no key is active.
+	EXPECT_EQ(the_cpu->get_pc(), 0);
+
+	// Now set a keystate to active.
+	the_keyboard->set_key_state(2, 1);
+
+	// Re-parse the opcode, and verify the program counter does increase.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_pc(), 2);
+
+	// Verify the Vx register gets the keystate value.
+	EXPECT_EQ(the_registers->get_register_value(5), 1);
 }
 
 /**
@@ -388,7 +788,16 @@ TEST_F(opcode_parser, test_LD_Vx_K)
 */
 TEST_F(opcode_parser, test_LD_DT_Vx)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0xf615;
 
+	// Set up the registers.
+	the_registers->set_register_value(6, 20);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_delay_timer(), 20);
 }
 
 /**
@@ -399,7 +808,16 @@ TEST_F(opcode_parser, test_LD_DT_Vx)
 */
 TEST_F(opcode_parser, test_LD_ST_Vx)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0xf618;
 
+	// Set up the registers.
+	the_registers->set_register_value(6, 20);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_sound_timer(), 20);
 }
 
 /**
@@ -410,7 +828,17 @@ TEST_F(opcode_parser, test_LD_ST_Vx)
 */
 TEST_F(opcode_parser, test_ADD_I_Vx)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0xf61e;
 
+	// Set up the registers.
+	the_registers->set_register_value(6, 20);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// Seeing as the I register is 0, it'll will just add 20 to it.
+	EXPECT_EQ(the_cpu->get_I_reg(), 20);
 }
 
 /**
@@ -421,7 +849,19 @@ TEST_F(opcode_parser, test_ADD_I_Vx)
 */
 TEST_F(opcode_parser, test_LD_F_Vx)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0xf529;
 
+	// Set up the registers to look for the hexadecimal sprite of 'A'.
+	the_registers->set_register_value(0x5, 0xa);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// Each sprite consists out of 5 8bit values, so the 'A' sprite will be located at 0xa * 5.
+	uint8_t my_value = 0xa * 0x5;
+
+	EXPECT_EQ(the_cpu->get_I_reg(), my_value);
 }
 
 /**
@@ -432,7 +872,19 @@ TEST_F(opcode_parser, test_LD_F_Vx)
 */
 TEST_F(opcode_parser, test_LD_B_Vx)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0xf933;
 
+	// Set up the registers.
+	the_registers->set_register_value(9, 0xf4);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// 0xf4 = 244 in decimal, this means 2 100 digits, 4 10 digits and 4 1 digits.
+	EXPECT_EQ(the_cpu->get_I_reg(), 2);
+	EXPECT_EQ(the_cpu->get_I_reg() + 1, 4);
+	EXPECT_EQ(the_cpu->get_I_reg() + 2, 4);
 }
 
 /**
@@ -443,7 +895,24 @@ TEST_F(opcode_parser, test_LD_B_Vx)
 */
 TEST_F(opcode_parser, test_LD_I_Vx)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0xff55;
 
+	// Set up the registers.
+	for (int i = 0; i < 0xf; i++)
+		the_registers->set_register_value(i, i + 1);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// Now check to see if the memory is loaded correctly, starting at I.
+	for (int i = 0; i < 0xf; i++)
+	{
+		uint8_t my_value = i + 1;
+		uint8_t my_address = the_cpu->get_I_reg() + i;
+
+		EXPECT_EQ(the_memory->get_byte(my_address), my_value);
+	}
 }
 
 /**
@@ -454,5 +923,23 @@ TEST_F(opcode_parser, test_LD_I_Vx)
 */
 TEST_F(opcode_parser, test_LD_VX_I)
 {
+	// Set up the opcode.
+	uint16_t my_opcode = 0xff65;
 
+	// Set up the memory.
+	uint8_t my_address = the_cpu->get_I_reg();
+
+	for (int i = 0; i < 0xf; i++)
+		the_memory->set_byte(my_address, i + 3);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// Now check to see if the memory is loaded into the registers.
+	for (int i = 0; i < 0xf; i++)
+	{
+		uint8_t my_value = i + 3;
+
+		EXPECT_EQ(the_registers->get_register_value(i), my_value);
+	}
 }

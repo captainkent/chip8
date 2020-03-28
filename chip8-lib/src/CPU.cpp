@@ -10,10 +10,11 @@
 #include <boost/chrono.hpp>
 #include <boost/bind.hpp>
 
-CCPU::CCPU(CMemory* a_memory, CRegisters* a_register, CGraphics* a_graphics) : 
+CCPU::CCPU(CMemory* a_memory, CRegisters* a_register, CGraphics* a_graphics, CKeyboard* a_keyboard) : 
 	the_memory(a_memory),
 	the_V_registers(a_register),
 	the_graphics(a_graphics),
+	the_keyboard(a_keyboard),
 	the_I_register(0x0),
 	the_opcode(0x0),
 	the_pc(0x0),
@@ -21,7 +22,6 @@ CCPU::CCPU(CMemory* a_memory, CRegisters* a_register, CGraphics* a_graphics) :
 	the_sound_timer(0x0),
 	the_stack({}),
 	the_sp(0x0),
-	the_key({}),
 	the_drawflag(false),
 	the_start_flag(false),
 	the_timer(the_context, boost::asio::chrono::milliseconds(2))
@@ -48,11 +48,11 @@ CCPU::initialize()
 	//the_V_reg		= {};
 	//the_memory		= {};
 
-	// For random number generation
+	// For random number generation.
 	srand(time(NULL));
 
 	// The fontset
-	unsigned char chip8_fontset[80] =
+	uint8_t chip8_fontset[80] =
 	{
 	  0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
 	  0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -72,10 +72,10 @@ CCPU::initialize()
 	  0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 	};
 
-	// Load the fontset into memory at 0x50.
+	// Load the fontset into memory at 0x0.						// Should this be 0x50 or 0x0?
 	for (int i = 0; i < sizeof(chip8_fontset); i++)
 	{
-		the_memory->set_byte(i + 0x50, chip8_fontset[i]);
+		the_memory->set_byte(i, chip8_fontset[i]);
 	}
 }
 
@@ -236,8 +236,10 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 		}
 		case 0x5000:
 		{
+			uint16_t my_opcode = an_opcode;
+			
 			uint8_t regx = code[0] & 0x0f;
-			uint8_t regy = code[1] & 0x0f;
+			uint8_t regy = (code[1] & 0xf0) >> 4;
 
 			if (the_V_registers->get_register_value(regx) == the_V_registers->get_register_value(regy))
 			{
@@ -543,7 +545,7 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 				case 0x9E:
 				{
 					uint8_t reg = code[0] & 0x0f;
-					if (the_key[the_V_registers->get_register_value(reg)] == 1)
+					if (the_keyboard->get_key_state(the_V_registers->get_register_value(reg)) == 1)
 					{
 						the_pc += 2;
 					}
@@ -556,7 +558,7 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 				case 0xA1:
 				{
 					uint8_t reg = code[0] & 0x0f;
-					if (the_key[the_V_registers->get_register_value(reg)] != 1)
+					if (the_keyboard->get_key_state(the_V_registers->get_register_value(reg)) != 1)
 					{
 						the_pc += 2;
 					}
@@ -592,13 +594,13 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 					uint8_t reg = code[0] & 0x0f;
 
 					// Check status of all keys stored in key.
-					for (auto i : the_key)
+					for (int i = 0; i < the_keyboard->get_size(); i++)
 					{
 						// If key state is active.
-						if (the_key[i])
+						if (the_keyboard->get_key_state(i) == 1)
 						{
 							// Store key value in Vreg.
-							the_V_registers->set_register_value(reg, i);
+							the_V_registers->set_register_value(reg, the_keyboard->get_key_state(i));
 							the_pc += 2;
 						}
 					}
@@ -689,7 +691,7 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 					for (int i = 0; i <= reg; i++)
 					{
 						//uint8_t my_value = the_memory.get_byte(the_I_register.get_byte() + 1);
-						uint8_t my_value = the_memory->get_byte(the_I_register + 1);
+						uint8_t my_value = the_memory->get_byte(the_I_register + i);
 						
 						the_V_registers->set_register_value(i, my_value);
 					}
@@ -713,6 +715,30 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 			break;
 		}
 	}
+}
+
+uint16_t
+CCPU::get_pc()
+{
+	return the_pc;
+}
+
+uint16_t 
+CCPU::get_I_reg()
+{
+	return the_I_register;
+}
+
+uint8_t
+CCPU::get_delay_timer()
+{
+	return the_delay_timer;
+}
+
+uint8_t
+CCPU::get_sound_timer()
+{
+	return the_sound_timer;
 }
 
 void CCPU::start()

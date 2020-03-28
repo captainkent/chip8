@@ -24,7 +24,7 @@ CGraphics::clear()
 }
 
 size_t
-CGraphics::size()
+CGraphics::get_size()
 {
 	return the_graphics.size();
 }
