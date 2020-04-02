@@ -1,7 +1,8 @@
 #include "pch.h"
-#include "../chip8-lib/src/CPU.h"
+#include "../chip8-lib/src/CCPU.h"
 #include "../chip8-lib/src/CMemory.h"
 #include "../chip8-lib/src/CRegisters.h"
+#include "../chip8-lib/src/CStack.h"
 #include "../chip8-lib/src/CGraphics.h"
 #include "../chip8-lib/src/CKeyboard.h"
 
@@ -9,6 +10,7 @@ class opcode_parser : public testing::Test {
 public:
 	CMemory*		the_memory;
 	CRegisters*		the_registers;
+	CStack*			the_stack;
 	CGraphics*		the_graphics;
 	CKeyboard*		the_keyboard;
 	CCPU*			the_cpu;
@@ -16,15 +18,17 @@ public:
 	void SetUp() {
 		the_memory		= new CMemory;
 		the_registers	= new CRegisters;
+		the_stack		= new CStack;
 		the_graphics	= new CGraphics;
 		the_keyboard	= new CKeyboard;
 
-		the_cpu = new CCPU(the_memory, the_registers, the_graphics, the_keyboard);
+		the_cpu = new CCPU(the_memory, the_registers, the_stack, the_graphics, the_keyboard);
 	}
 
 	void TearDown() {
 		delete the_memory;
 		delete the_registers;
+		delete the_stack;
 		delete the_graphics;
 		delete the_keyboard;
 		delete the_cpu;
@@ -128,7 +132,17 @@ TEST_F(opcode_parser, test_CLS)
 */
 TEST_F(opcode_parser, test_RET)
 {
-	EXPECT_EQ(0, 1);
+	// Set up the opcode.
+	uint16_t my_opcode = 0x00ee;
+
+	// Set something at the top of the stack.
+	the_stack->push(0x55);
+	the_stack->push(0x33);				// should be this one!
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_pc(), 0x33);
 }
 
 /**
@@ -158,7 +172,13 @@ TEST_F(opcode_parser, test_JP_addr)
 */
 TEST_F(opcode_parser, test_CALL_addr)
 {
-	EXPECT_EQ(0, 1);
+	// Set up the opcode.
+	uint16_t my_opcode = 0x2123;
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	EXPECT_EQ(the_cpu->get_pc(), 0x123);
 }
 
 /**
@@ -500,7 +520,7 @@ TEST_F(opcode_parser, test_SHR_Vx_Vy)
 TEST_F(opcode_parser, test_SUBN_Vx_Vy)
 {
 	// Set up the opcode.
-	uint8_t my_opcode = 0x8437;
+	uint16_t my_opcode = 0x8437;
 
 	// Set up the registers, with carry bit.
 	the_registers->set_register_value(4, 0x10);
@@ -538,7 +558,7 @@ TEST_F(opcode_parser, test_SUBN_Vx_Vy)
 TEST_F(opcode_parser, test_SHL_Vx_Vy)
 {
 	// Set up the opcode.
-	uint8_t my_opcode = 0x843e;
+	uint16_t my_opcode = 0x843e;
 
 	// Set up the registers.
 	the_registers->set_register_value(4, 0x10);
@@ -665,7 +685,74 @@ TEST_F(opcode_parser, test_RND_Vx_byte)
 */
 TEST_F(opcode_parser, test_DRW_Vx_Vy_nibble)
 {
-	EXPECT_EQ(0, 1);
+	// A chip8 sprite can be anything which is always 8 pixels wide, but up to 15 pixels high.
+	// This opcode draws a sprite, stored in the memory at location I, at (Vx, Vy), where the pixels are a maximum of 64x32.
+
+	// ----------------
+	// |(0,0)   (63,0)|
+	// |              |
+	// |              |
+	// |(0,31) (63,31)|
+	// ----------------
+
+
+	// So we take the following sprite.
+	//
+	// Sprite Map	Binary		Hex		Dec
+	// X......X		0b10000001	0x81	129
+	// .X....X.		0b01000010	0x42	66
+	// ..X..X..		0b00100100	0x24	36
+	// ...XX...		0b00011000	0x18	24
+	// ...XX...		0b00011000  0x18	24
+	// ..X..X..		0b00100100	0x24	36
+	// .X.....X.	0b01000010	0x42	66
+	// X.......X	0b10000001	0x81	129
+	
+	// Load this into memory, starting at I. In our case, I is 0, but retrieve it anyway.
+	uint16_t my_address = the_cpu->get_I_reg();
+
+	// Now load the sprite.
+	the_memory->set_byte(my_address,	 0x81);
+	the_memory->set_byte(my_address + 1, 0x42);
+	the_memory->set_byte(my_address + 2, 0x24);
+	the_memory->set_byte(my_address + 3, 0x18);
+	the_memory->set_byte(my_address + 4, 0x18);
+	the_memory->set_byte(my_address + 5, 0x24);
+	the_memory->set_byte(my_address + 6, 0x42);
+	the_memory->set_byte(my_address + 7, 0x81);
+
+	// Set up the opcode.
+	uint16_t my_opcode = 0xd128;
+
+	// Now draw this sprite at (10,20).
+	the_registers->set_register_value(1, 10);
+	the_registers->set_register_value(2, 20);
+
+	// Parse the opcode.
+	the_cpu->parse_opcode(my_opcode);
+
+	// To check the pixel state, the pixels are at y + n * 64 + x + pixel width, where is x is a maximum of 8, and y is n high.
+	// So our starting pixel is 20 * 64 + 10 = 1290.
+	
+	// Now verify it has been drawn, first row (n=0).
+	EXPECT_EQ(the_graphics->get_pixel_state(1290), 1);
+	EXPECT_EQ(the_graphics->get_pixel_state(1291), 0);
+	EXPECT_EQ(the_graphics->get_pixel_state(1292), 0);
+	EXPECT_EQ(the_graphics->get_pixel_state(1293), 0);
+	EXPECT_EQ(the_graphics->get_pixel_state(1294), 0);
+	EXPECT_EQ(the_graphics->get_pixel_state(1295), 0);
+	EXPECT_EQ(the_graphics->get_pixel_state(1296), 0);
+	EXPECT_EQ(the_graphics->get_pixel_state(1297), 1);
+
+	// Second row (n=1). Pixels start at 21 * 64 + 10 = 1354.
+	EXPECT_EQ(the_graphics->get_pixel_state(1354), 0);
+	EXPECT_EQ(the_graphics->get_pixel_state(1355), 1);
+	EXPECT_EQ(the_graphics->get_pixel_state(1356), 0);
+	EXPECT_EQ(the_graphics->get_pixel_state(1357), 0);
+	EXPECT_EQ(the_graphics->get_pixel_state(1358), 0);
+	EXPECT_EQ(the_graphics->get_pixel_state(1359), 0);
+	EXPECT_EQ(the_graphics->get_pixel_state(1360), 1);
+	EXPECT_EQ(the_graphics->get_pixel_state(1361), 0);
 }
 
 /**
@@ -677,10 +764,13 @@ TEST_F(opcode_parser, test_DRW_Vx_Vy_nibble)
 TEST_F(opcode_parser, test_SKP_Vx)
 {
 	// Set up the opcode.
-	uint8_t my_opcode = 0xe59e;
+	uint16_t my_opcode = 0xe59e;
+
+	// Set up the registers.
+	the_registers->set_register_value(5, 0xa);
 
 	// Set up something in the keystate to active.
-	the_keyboard->set_key_state(5, 1);
+	the_keyboard->set_key_state(0xa, 1);
 
 	// Parse the opcode.
 	the_cpu->parse_opcode(my_opcode);
@@ -689,7 +779,7 @@ TEST_F(opcode_parser, test_SKP_Vx)
 	EXPECT_EQ(the_cpu->get_pc(), 4);
 
 	// Now set keystate to inactive.
-	the_keyboard->set_key_state(5, 0);
+	the_keyboard->set_key_state(0xa, 0);
 
 	// Parse the opcode.
 	the_cpu->parse_opcode(my_opcode);
@@ -708,10 +798,13 @@ TEST_F(opcode_parser, test_SKP_Vx)
 TEST_F(opcode_parser, test_SKNP_Vx)
 {
 	// Set up the opcode.
-	uint8_t my_opcode = 0xe5a1;
+	uint16_t my_opcode = 0xe5a1;
+
+	// Set up the registers.
+	the_registers->set_register_value(5, 0xa);
 
 	// Set up something in the keystate to active.
-	the_keyboard->set_key_state(5, 1);
+	the_keyboard->set_key_state(0xa, 1);
 
 	// Parse the opcode.
 	the_cpu->parse_opcode(my_opcode);
@@ -719,8 +812,8 @@ TEST_F(opcode_parser, test_SKNP_Vx)
 	// Key state is active, so the program counter will NOT be skipped.
 	EXPECT_EQ(the_cpu->get_pc(), 2);
 
-	// Now set keystate to active.
-	the_keyboard->set_key_state(5, 1);
+	// Now set keystate to inactive.
+	the_keyboard->set_key_state(0xa, 0);
 
 	// Parse the opcode.
 	the_cpu->parse_opcode(my_opcode);
@@ -881,10 +974,13 @@ TEST_F(opcode_parser, test_LD_B_Vx)
 	// Parse the opcode.
 	the_cpu->parse_opcode(my_opcode);
 
+	// The i reg.
+	uint8_t my_i_reg = the_cpu->get_I_reg();
+
 	// 0xf4 = 244 in decimal, this means 2 100 digits, 4 10 digits and 4 1 digits.
-	EXPECT_EQ(the_cpu->get_I_reg(), 2);
-	EXPECT_EQ(the_cpu->get_I_reg() + 1, 4);
-	EXPECT_EQ(the_cpu->get_I_reg() + 2, 4);
+	EXPECT_EQ(the_memory->get_byte(my_i_reg), 2);
+	EXPECT_EQ(the_memory->get_byte(my_i_reg + 1), 4);
+	EXPECT_EQ(the_memory->get_byte(my_i_reg + 2), 4);
 }
 
 /**
@@ -930,7 +1026,7 @@ TEST_F(opcode_parser, test_LD_VX_I)
 	uint8_t my_address = the_cpu->get_I_reg();
 
 	for (int i = 0; i < 0xf; i++)
-		the_memory->set_byte(my_address, i + 3);
+		the_memory->set_byte(my_address + i, i + 3);
 
 	// Parse the opcode.
 	the_cpu->parse_opcode(my_opcode);

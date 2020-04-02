@@ -4,25 +4,28 @@
 #include <iostream>
 #include "..\chip8-lib\src\CMemory.h"
 #include "..\chip8-lib\src\CRegisters.h"
+#include "..\chip8-lib\src\CKeyboard.h"
+#include "..\chip8-lib\src\CGraphics.h"
+#include "..\chip8-lib\src\CCPU.h"
 
-int main()
+#include "..\chip8-lib\src\stuff.h"
+
+int main(int argc, char* argv[])
 {
-    CMemory my_memory;
+    CMemory*    my_memory       = new CMemory;
+    CRegisters* my_register     = new CRegisters;
+    CStack*     my_stack        = new CStack;
+    CGraphics*  my_graphics     = new CGraphics;
+    CKeyboard*  my_keyboard     = new CKeyboard;
+    
+    CCPU my_cpu(my_memory, my_register, my_stack, my_graphics, my_keyboard);
 
-    std::vector<uint8_t> my_data;
-
-    my_data.push_back(0x05);
-    my_data.push_back(0x06);
-
-    my_memory.load_data(my_data);
-
-    uint16_t my_opcode = my_memory.get_opcode(0x200);
-
-    CRegisters my_registers;
-
-    my_registers.set_register_value(6, 100);
-
-    std::cout << my_registers.get_register_value(6);
+    //my_cpu.load_game("..\\games\\draw.ch8");
+    my_cpu.load_game("..\\games\\draw.ch8");
+    my_cpu.initialize();
+    my_cpu.start();
+    
+    return 0;
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu

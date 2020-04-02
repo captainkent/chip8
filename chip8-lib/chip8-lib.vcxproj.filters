@@ -24,9 +24,6 @@
     <ClInclude Include="src\CMemory.h">
       <Filter>Header Files\src</Filter>
     </ClInclude>
-    <ClInclude Include="src\CPU.h">
-      <Filter>Header Files\src</Filter>
-    </ClInclude>
     <ClInclude Include="src\CRegisters.h">
       <Filter>Header Files\src</Filter>
     </ClInclude>
@@ -39,12 +36,15 @@
     <ClInclude Include="src\CKeyboard.h">
       <Filter>Header Files\src</Filter>
     </ClInclude>
+    <ClInclude Include="src\CCPU.h">
+      <Filter>Header Files\src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\CStack.h">
+      <Filter>Header Files\src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CMemory.cpp">
-      <Filter>Source Files\src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\CPU.cpp">
       <Filter>Source Files\src</Filter>
     </ClCompile>
     <ClCompile Include="src\CRegisters.cpp">
@@ -57,6 +57,12 @@
       <Filter>Source Files\src</Filter>
     </ClCompile>
     <ClCompile Include="src\CKeyboard.cpp">
+      <Filter>Source Files\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CCPU.cpp">
+      <Filter>Source Files\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CStack.cpp">
       <Filter>Source Files\src</Filter>
     </ClCompile>
   </ItemGroup>

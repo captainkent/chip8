@@ -7,15 +7,19 @@
 #include <array>
 #include <vector>
 #include <atomic>
+#include <stack>
+
+#include "CCPU.h"
 #include "CMemory.h"
 #include "CRegisters.h"
+#include "CStack.h"
 #include "CGraphics.h"
 #include "CKeyboard.h"
 
 class CCPU
 {
 public:
-	CCPU(CMemory* a_memory, CRegisters* a_register, CGraphics* a_graphics, CKeyboard* a_keyboard);
+	CCPU(CMemory* a_memory, CRegisters* a_register, CStack* a_stack, CGraphics* a_graphics, CKeyboard* a_keyboard);
 	~CCPU();
 
 	void		initialize();
@@ -34,6 +38,9 @@ private:
 	CRegisters*					the_V_registers;
 	CGraphics*					the_graphics;
 	CKeyboard*					the_keyboard;
+	CStack*						the_stack;
+	//std::stack<uint16_t>		the_stack;
+
 	
 	uint16_t					the_opcode;
 	uint16_t					the_pc;
@@ -43,7 +50,7 @@ private:
 	uint8_t						the_delay_timer;
 	bool						the_drawflag;
 	
-	std::array<uint16_t, 16>	the_stack;
+	//std::array<uint16_t, 16>	the_stack;
 	
 
 	// for timing...

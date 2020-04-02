@@ -19,19 +19,21 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\CCPU.h" />
     <ClInclude Include="src\CGraphics.h" />
     <ClInclude Include="src\CKeyboard.h" />
     <ClInclude Include="src\CMemory.h" />
-    <ClInclude Include="src\CPU.h" />
     <ClInclude Include="src\CRegisters.h" />
+    <ClInclude Include="src\CStack.h" />
     <ClInclude Include="src\stuff.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\CCPU.cpp" />
     <ClCompile Include="src\CGraphics.cpp" />
     <ClCompile Include="src\CKeyboard.cpp" />
     <ClCompile Include="src\CMemory.cpp" />
-    <ClCompile Include="src\CPU.cpp" />
     <ClCompile Include="src\CRegisters.cpp" />
+    <ClCompile Include="src\CStack.cpp" />
     <ClCompile Include="src\stuff.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -75,15 +77,19 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="Macros.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="Macros.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="Macros.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="Macros.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -111,6 +117,12 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Lib>
+    <Lib>
+      <AdditionalLibraryDirectories>$(VcpkgRootPackages)\sdl2_x86-windows\lib;$(VcpkgRootPackages)\sdl2_x86-windows\lib\manual-link;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

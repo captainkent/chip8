@@ -1,5 +1,5 @@
 #pragma once
-#include "CPU.h"
+#include "CCPU.h"
 #include <stdlib.h>
 #include <time.h>
 #include <fstream>
@@ -10,9 +10,10 @@
 #include <boost/chrono.hpp>
 #include <boost/bind.hpp>
 
-CCPU::CCPU(CMemory* a_memory, CRegisters* a_register, CGraphics* a_graphics, CKeyboard* a_keyboard) : 
+CCPU::CCPU(CMemory* a_memory, CRegisters* a_register, CStack* a_stack, CGraphics* a_graphics, CKeyboard* a_keyboard) : 
 	the_memory(a_memory),
 	the_V_registers(a_register),
+	the_stack(a_stack),
 	the_graphics(a_graphics),
 	the_keyboard(a_keyboard),
 	the_I_register(0x0),
@@ -20,7 +21,7 @@ CCPU::CCPU(CMemory* a_memory, CRegisters* a_register, CGraphics* a_graphics, CKe
 	the_pc(0x0),
 	the_delay_timer(0x0),
 	the_sound_timer(0x0),
-	the_stack({}),
+	//the_stack({}),
 	the_sp(0x0),
 	the_drawflag(false),
 	the_start_flag(false),
@@ -44,7 +45,7 @@ CCPU::initialize()
 	the_sp			= 0x0;
 	
 	// Clear registers.
-	the_stack		= {};
+	//the_stack		= {};
 	//the_V_reg		= {};
 	//the_memory		= {};
 
@@ -77,6 +78,9 @@ CCPU::initialize()
 	{
 		the_memory->set_byte(i, chip8_fontset[i]);
 	}
+
+	// Initialise SDL stuff.
+	the_graphics->init();
 }
 
 bool
@@ -136,6 +140,10 @@ CCPU::cpu_cycle(boost::system::error_code const& e, boost::asio::steady_timer* t
 		--the_sound_timer;
 	}
 
+	// Do we need to draw?
+	if (the_drawflag)
+		the_graphics->draw();
+
 	// If we're done with our timer, return to stop endlessly continuing. Make sure to do this after we've performed our last cycle!
 	if (!the_start_flag)
 		return;
@@ -172,9 +180,12 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 				}
 				case 0xee:
 				{
+					the_pc = the_stack->top();
 					the_sp--;
-					the_pc = the_stack[the_sp];
-					the_pc += 2;
+										
+					//the_sp--;
+					//the_pc = the_stack[the_sp];
+					//the_pc += 2;
 
 					printf("%-10s\n", "RET");
 					break;
@@ -196,9 +207,12 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 		case 0x2000:
 		{
 			uint16_t addr = ((code[0] & 0x0f) << 8) + code[1];
-
-			the_stack[the_sp] = the_pc;
+			
 			the_sp++;
+			the_stack->push(the_pc);
+
+			//the_stack[the_sp] = the_pc;
+			//the_sp++;
 			the_pc = addr;
 
 			printf("%-10s #$%03x\n", "CALL", addr);
@@ -378,11 +392,10 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 				{
 					uint8_t regx = code[0] & 0x0f;
 					uint8_t regy = (code[1] & 0xf0) >> 4;
+					uint8_t my_value = the_V_registers->get_register_value(regx) >> 1;
+					uint8_t my_lsb = the_V_registers->get_register_value(regy) & 0b0001;
 
-					the_V_registers->set_register_value(0xf, regx & 0x1);
-					
-					uint8_t my_value = the_V_registers->get_register_value(regx) / 2;
-
+					the_V_registers->set_register_value(0xf, my_lsb);
 					the_V_registers->set_register_value(regx, my_value);
 					the_pc += 2;
 
@@ -415,17 +428,11 @@ void CCPU::parse_opcode(uint16_t an_opcode)
 				{
 					uint8_t regx = code[0] & 0x0f;
 					uint8_t regy = (code[1] & 0xf0) >> 4;
-
-					if ((the_V_registers->get_register_value(regx) & 0xf0) == 0x1)
-					{
-						the_V_registers->set_register_value(0xf, 1);
-					}
-					else
-					{
-						the_V_registers->set_register_value(0xf, 0);
-					}
+					uint8_t my_msb = the_V_registers->get_register_value(regy) & 0b1000;
 					
-					uint8_t my_value = the_V_registers->get_register_value(regx) * 2;
+					the_V_registers->set_register_value(0xf, my_msb);
+
+					uint8_t my_value = the_V_registers->get_register_value(regy) << 1;
 
 					the_V_registers->set_register_value(regx, my_value);
 					the_pc += 2;
